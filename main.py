@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import threading
 from collections import deque
 import pytz
+import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
@@ -12,6 +13,7 @@ bot = telebot.TeleBot(TOKEN)
 history = deque(maxlen=10)
 MOSCOW = pytz.timezone("Europe/Moscow")
 
+# вечная клавиатура
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
 kb.add("Астарот — вручную", "Лилит — вручную")
@@ -40,7 +42,9 @@ def schedule_boss(boss_name, hours, minutes, death_dt):
 @bot.message_handler(commands=['start', 'help'])
 def start(m):
     bot.send_message(m.chat.id,
-        "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nВремя до секунд, строго МСК\nКнопки всегда внизу ↓",
+        "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\n"
+        "Время до секунд, строго МСК\n"
+        "Кнопки всегда внизу ↓",
         parse_mode="HTML", reply_markup=kb)
 
 @bot.message_handler(func=lambda m: True)
@@ -56,23 +60,22 @@ def handle(m):
         bot.reply_to(m, f"Лилит записана на {death} (МСК) + 3ч 58мин", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Время смерти Астарота\nПримеры: 22:58:00  или  3:15  или  14:30")
+        bot.reply_to(m, "Время смерти Астарота\nЛюбой формат: 14:30 · 3:15 · 22:58:00")
         bot.register_next_step_handler(m, ast_manual)
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Время смерти Лилит\nПримеры: 22:58:00  или  3:15  или  03:15:27")
+        bot.reply_to(m, "Время смерти Лилит\nЛюбой формат: 03:15 · 3:15:27 · 22:58:00")
         bot.register_next_step_handler(m, lil_manual)
 
     elif txt == "История записей":
         text = "Последние смерти (МСК):\n" + ("\n".join(history) if history else "пусто")
         bot.reply_to(m, text, reply_markup=kb)
 
-def parse_time(m, boss_name, h, mnt):
+def parse_flexible_time(m, boss_name, h, mnt):
     try:
-        # убираем всё лишнее и разбиваем по двоеточию
-        cleaned = "".join(c for c in m.text if c in "0123456789:")
-        parts = cleaned.split(":")
-        parts = [int(x) for x in parts if x]  # убираем пустые
+        # вытаскиваем только цифры и двоеточия
+        clean = re.sub(r"[^\d:]", "", m.text.strip())
+        parts = [int(x) for x in clean.split(":") if x]
 
         hour = parts[0]
         minute = parts[1]
@@ -82,9 +85,9 @@ def parse_time(m, boss_name, h, mnt):
         schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {death.strftime('%H:%M:%S')} (МСК) + {h}ч {mnt}мин", reply_markup=kb)
     except:
-        bot.send_message(m.chat.id, "Ошибка формата!\nПросто пришли время: 22:58:00 или 03:15", reply_markup=kb)
+        bot.send_message(m.chat.id, "Не понял время\nПросто пришли: 22:58 или 22:58:00", reply_markup=kb)
 
-def ast_manual(m): parse_time(m, "АСТАРОТ", 4, 8)
-def lil_manual(m): parse_time(m, "ЛИЛИТ", 3, 58)
+def ast_manual(m): parse_flexible_time(m, "АСТАРОТ", 4, 8)
+def lil_manual(m): parse_flexible_time(m, "ЛИЛИТ", 3, 58)
 
 bot.infinity_polling()
