@@ -12,7 +12,6 @@ bot = telebot.TeleBot(TOKEN)
 history = deque(maxlen=10)
 MOSCOW = pytz.timezone("Europe/Moscow")
 
-# вечная клавиатура
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
 kb.add("Астарот — вручную", "Лилит — вручную")
@@ -33,7 +32,7 @@ def schedule_boss(boss_name, hours, minutes, death_dt):
     df = (appear - datetime.now(MOSCOW)).total_seconds()
 
     if dw > 0:
-        threading.Timer(dw, send, args=[f" <b>{boss_name}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} (МСК)"]).start()
+        threading.Timer(dw, send, args=[f"<b>{boss_name}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} (МСК)"]).start()
     threading.Timer(df, send, args=[f"<b>{boss_name} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} (МСК)"]).start()
 
     return death_dt.strftime('%H:%M:%S')
@@ -58,35 +57,32 @@ def handle(m):
         bot.reply_to(m, f"Лилит записана на {death} (МСК) + 3ч 58мин", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Время смерти Астарота\nФормат: 14:30 или 14:30:45")
+        bot.reply_to(m, "Время смерти Астарота\nПримеры: 14:30 или 22:55:00")
         bot.register_next_step_handler(m, ast_manual)
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Время смерти Лилит\nФормат: 03:15 или 03:15:27")
+        bot.reply_to(m, "Время смерти Лилит\nПримеры: 03:15 или 22:55:00")
         bot.register_next_step_handler(m, lil_manual)
 
     elif txt == "История записей":
         text = "Последние смерти (МСК):\n" + ("\n".join(history) if history else "пусто")
         bot.reply_to(m, text, reply_markup=kb)
 
-# Универсальная функция для обоих боссов
-def parse_and_schedule(m, boss_name, hours, minutes):
+def parse_time_input(m, boss_name, h, mnt):
     try:
-        parts = [int(x) for x in m.text.strip().split(':')]
-        h = parts[0]
-        mn = parts[1]
-        sec = parts[2] if len(parts) == 3 else 0
+        clean = m.text.strip()
+        parts = [int(x) for x in clean.replace(" ", "").split(':')]
+        hour = parts[0]
+        minute = parts[1]
+        second = parts[2] if len(parts) >= 3 else 0
 
-        death = datetime.now(MOSCOW).replace(hour=h, minute=mn, second=sec, microsecond=0)
-        schedule_boss(boss_name, hours, minutes, death)
-        bot.send_message(m.chat.id, f"{boss_name} записан на {death.strftime('%H:%M:%S')} (МСК) + {hours}ч {minutes}мин", reply_markup=kb)
-    except:
-        bot.send_message(m.chat.id, "Неправильно! Пример: 22:55 или 22:55:00", reply_markup=kb)
+        death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
+        schedule_boss(boss_name, h, mnt, death)
+        bot.send_message(m.chat.id, f"{boss_name} записан на {death.strftime('%H:%M:%S')} (МСК) + {h}ч {mnt}мин", reply_markup=kb)
+    except Exception as e:
+        bot.send_message(m.chat.id, "Ошибка формата!\nПримеры: 22:55 или 22:55:00", reply_markup=kb)
 
-def ast_manual(m):
-    parse_and_schedule(m, "АСТАРОТ", 4, 8)
-
-def lil_manual(m):
-    parse_and_schedule(m, "ЛИЛИТ", 3, 58)
+def ast_manual(m): parse_time_input(m, "АСТАРОТ", 4, 8)
+def lil_manual(m): parse_time_input(m, "ЛИЛИТ", 3, 58)
 
 bot.infinity_polling()
