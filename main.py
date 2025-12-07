@@ -57,11 +57,11 @@ def handle(m):
         bot.reply_to(m, f"Лилит записана на {death} (МСК) + 3ч 58мин", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Время смерти Астарота\nПримеры: 14:30 или 22:55:00")
+        bot.reply_to(m, "Время смерти Астарота (примеры: 14:30 или 22:57:00)")
         bot.register_next_step_handler(m, ast_manual)
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Время смерти Лилит\nПримеры: 03:15 или 22:55:00")
+        bot.reply_to(m, "Время смерти Лилит (примеры: 03:15 или 22:57:00)")
         bot.register_next_step_handler(m, lil_manual)
 
     elif txt == "История записей":
@@ -71,16 +71,16 @@ def handle(m):
 def parse_time_input(m, boss_name, h, mnt):
     try:
         clean = m.text.strip()
-        parts = [int(x) for x in clean.replace(" ", "").split(':')]
+        parts = [int(x) for x in clean.split(':')]
         hour = parts[0]
         minute = parts[1]
-        second = parts[2] if len(parts) >= 3 else 0
+        second = parts[2] if len(parts) == 3 else 0
 
         death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
         schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {death.strftime('%H:%M:%S')} (МСК) + {h}ч {mnt}мин", reply_markup=kb)
-    except Exception as e:
-        bot.send_message(m.chat.id, "Ошибка формата!\nПримеры: 22:55 или 22:55:00", reply_markup=kb)
+    except:
+        bot.send_message(m.chat.id, "Неправильно!\nПримеры: 22:57 или 22:57:00", reply_markup=kb)
 
 def ast_manual(m): parse_time_input(m, "АСТАРОТ", 4, 8)
 def lil_manual(m): parse_time_input(m, "ЛИЛИТ", 3, 58)
