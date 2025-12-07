@@ -24,19 +24,22 @@ def add_to_history(boss, death_dt):
 def send(msg):
     bot.send_message(CHAT_ID, msg, parse_mode="HTML")
 
-def schedule_boss(boss, hours, minutes, death_dt):
+def schedule_boss(boss_name, hours, minutes, death_dt):
     appear = death_dt + timedelta(hours=hours, minutes=minutes)
     warn = appear - timedelta(minutes=2)
-    add_to_history(boss, death_dt)
 
-    dw = max(0, (warn - datetime.now(MOSCOW)).total_seconds())
-    df = (appear - datetime.now(MOSCOW)).total_seconds()
+    add_to_history(boss_name, death_dt)
 
-    if dw > 0:
-        threading.Timer(dw, send, args=[f"⚠️ <b>{boss}</b> через 2 минуты!\n"
-                                       f"⏰ ≈ {appear.strftime('%H:%M:%S')} (МСК)"]).start()
-    threading.Timer(df, send, args=[f"<b>{boss} ПОЯВИЛСЯ!</b>\n"
-                                   f"Время: {appear.strftime('%H:%M:%S')} (МСК)"]).start()
+    # за 2 минуты
+    delay_warn = (warn - datetime.now(MOSCOW)).total_seconds()
+    if delay_warn > 0:
+        threading.Timer(delay_warn, send, args=[f" <b>{boss_name}</b> через 2 минуты!\n"
+                                               f"≈ {appear.strftime('%H:%M:%S')} (МСК)"]).start()
+
+    # точный респ
+    delay_full = (appear - datetime.now(MOSCOW)).total_seconds()
+    threading.Timer(delay_full, send, args=[f"<b>{boss_name} ПОЯВИЛСЯ!</b>\n"
+                                           f"{appear.strftime('%H:%M:%S')} (МСК)"]).start()
 
     return death_dt.strftime('%H:%M:%S')
 
@@ -44,7 +47,7 @@ def schedule_boss(boss, hours, minutes, death_dt):
 def start(m):
     bot.send_message(m.chat.id,
         "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\n"
-        "Время до секунд, строго МСК (UTC+3)\n"
+        "Время до секунд, строго МСК\n"
         "Кнопки всегда внизу ↓",
         parse_mode="HTML", reply_markup=kb)
 
@@ -62,11 +65,11 @@ def handle(m):
         bot.reply_to(m, f"Лилит записана на {death} (МСК) + 3ч 58мин", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Пришли время смерти Астарота (14:30:45)")
+        bot.reply_to(m, "Время смерти Астарота (14:30:45)")
         bot.register_next_step_handler(m, ast_manual)
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Пришли время смерти Лилит (03:15:27)")
+        bot.reply_to(m, "Время смерти Лилит (03:15:27)")
         bot.register_next_step_handler(m, lil_manual)
 
     elif txt == "История записей":
