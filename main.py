@@ -12,6 +12,7 @@ bot = telebot.TeleBot(TOKEN)
 history = deque(maxlen=10)
 MOSCOW = pytz.timezone("Europe/Moscow")
 
+# вечная клавиатура
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
 kb.add("Астарот — вручную", "Лилит — вручную")
@@ -57,32 +58,32 @@ def handle(m):
         bot.reply_to(m, f"Лилит записана на {death} (МСК) + 3ч 58мин", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Время смерти Астарота (примеры: 14:30 или 22:57:00)")
+        bot.reply_to(m, "Время смерти Астарота\nПримеры: 14:30 или 22:57:00")
         bot.register_next_step_handler(m, ast_manual)
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Время смерти Лилит (примеры: 03:15 или 22:57:00)")
+        bot.reply_to(m, "Время смерти Лилит\nПримеры: 03:15 или 22:57:00")
         bot.register_next_step_handler(m, lil_manual)
 
     elif txt == "История записей":
         text = "Последние смерти (МСК):\n" + ("\n".join(history) if history else "пусто")
         bot.reply_to(m, text, reply_markup=kb)
 
-def parse_time_input(m, boss_name, h, mnt):
+def parse_time(m, boss_name, h, mnt):
     try:
-        clean = m.text.strip()
-        parts = [int(x) for x in clean.split(':')]
-        hour = parts[0]
-        minute = parts[1]
-        second = parts[2] if len(parts) == 3 else 0
+        # убираем все пробелы и разбиваем по :
+        parts = m.text.strip().replace(" ", "").split(":")
+        hour = int(parts[0])
+        minute = int(parts[1])
+        second = int(parts[2]) if len(parts) >= 3 else 0
 
         death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
         schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {death.strftime('%H:%M:%S')} (МСК) + {h}ч {mnt}мин", reply_markup=kb)
-    except:
-        bot.send_message(m.chat.id, "Неправильно!\nПримеры: 22:57 или 22:57:00", reply_markup=kb)
+    except Exception:
+        bot.send_message(m.chat.id, "Ошибка!\nПравильно: 22:57 или 22:57:00", reply_markup=kb)
 
-def ast_manual(m): parse_time_input(m, "АСТАРОТ", 4, 8)
-def lil_manual(m): parse_time_input(m, "ЛИЛИТ", 3, 58)
+def ast_manual(m): parse_time(m, "АСТАРОТ", 4, 8)
+def lil_manual(m): parse_time(m, "ЛИЛИТ", 3, 58)
 
 bot.infinity_polling()
