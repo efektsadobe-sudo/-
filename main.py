@@ -10,7 +10,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 bot = telebot.TeleBot(TOKEN)
 
 history = deque(maxlen=10)
-tz = pytz.timezone("Europe/Kiev")
+tz = pytz.timezone("Europe/Moscow")
 
 # === ВЕЧНАЯ КЛАВИАТУРА ===
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -89,3 +89,4 @@ def lil_manual(m):
         bot.send_message(m.chat.id, "Неправильно, попробуй ещё (03:15)", reply_markup=kb)
 
 bot.infinity_polling()
+
