@@ -78,10 +78,10 @@ def handle(m):
 
 def manual(m, boss_name, h, mnt):
     try:
-        # Принимает 00:11:40, 0:11:40, 23:57, 235700 и т.д.
+        # Принимает 00:15:00, 0:15:00, 23:52:00, 3:15, 235200 и т.д.
         cleaned = ''.join(c for c in m.text if c.isdigit() or c == ':')
         parts = cleaned.split(':')
-        parts = [p.zfill(2) for p in parts if p or p == '0']  # ← фикс для 00:11:40
+        parts = [p.zfill(2) for p in parts if p or p == '0']  # фикс для ведущих нулей
 
         hour = int(parts[0])
         minute = int(parts[1])
@@ -91,6 +91,6 @@ def manual(m, boss_name, h, mnt):
         d, a = schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)
     except:
-        bot.send_message(m.chat.id, "Неправильно!\nПримеры: 00:11:40 · 23:57 · 235700", reply_markup=kb)
+        bot.send_message(m.chat.id, "Ошибка! Примеры: 00:15:00 · 23:52 · 235200", reply_markup=kb)
 
 bot.infinity_polling()
