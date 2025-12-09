@@ -11,9 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 
 MOSCOW = pytz.timezone("Europe/Moscow")
 history = deque(maxlen=10)
-
-# Список активных таймеров: (время появления, босс)
-timers = []
+timers = []  # [appear_time, boss_name, warned]
 
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
@@ -28,27 +26,27 @@ def send(msg):
 
 def schedule_boss(boss_name, hours, minutes, death_dt):
     appear = death_dt + timedelta(hours=hours, minutes=minutes)
-    timers.append((appear, boss_name, death_dt))
+    timers.append([appear, boss_name, False])
     add_to_history(boss_name, death_dt.strftime('%H:%M:%S'), appear.strftime('%H:%M:%S'))
     return death_dt.strftime('%H:%M:%S'), appear.strftime('%H:%M:%S')
 
-# === ФОНОВАЯ ПРОВЕРКА ТАЙМЕРОВ (никогда не умирает) ===
+# вечный цикл — 100 % работает даже после сна
 def timer_loop():
     while True:
         now = datetime.now(MOSCOW)
-        for appear, boss, death in timers[:]:
-            if now >= appear - timedelta(minutes=2) and now < appear - timedelta(minutes=1, seconds=50):
+        for t in timers[:]:
+            appear, boss, warned = t
+            if not warned and now >= appear - timedelta(minutes=2):
                 send(f"<b>{boss}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} МСК")
-                timers.remove((appear, boss, death))
-            elif now >= appear:
+                t[2] = True
+            if now >= appear:
                 send(f"<b>{boss} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} МСК")
-                timers.remove((appear, boss, death))
-        time.sleep(5)  # проверяем каждые 5 сек
+                timers.remove(t)
+        time.sleep(3)
 
 import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
-# === Остальной код без изменений ===
 @bot.message_handler(commands=['start', 'help'])
 def start(m):
     bot.send_message(m.chat.id, "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nМСК · до секунд · 24/7", parse_mode="HTML", reply_markup=kb)
@@ -68,26 +66,30 @@ def handle(m):
 
     elif txt == "Астарот — вручную":
         bot.reply_to(m, "Время смерти Астарота")
-        bot.register_next_step_handler(m, lambda x: parse_time(x, "АСТАРОТ", 4, 8))
+        bot.register_next_step_handler(m, lambda x: manual(x, "АСТАРОТ", 4, 8))
 
     elif txt == "Лилит — вручную":
         bot.reply_to(m, "Время смерти Лилит")
-        bot.register_next_step_handler(m, lambda x: parse_time(x, "ЛИЛИТ", 3, 58))
+        bot.register_next_step_handler(m, lambda x: manual(x, "ЛИЛИТ", 3, 58))
 
     elif txt == "История записей":
-        text = "<b>Последние респы:</b>\n" + ("\n".join(history) if history else "пусто")
+        if history:
+            text = "<b>Последние респы:</b>\n" + "\n".join(history)
+        else:
+            text = "История пуста"
         bot.reply_to(m, text, parse_mode="HTML", reply_markup=kb)
 
-def parse_time(m, boss_name, h, mnt):
+def manual(m, boss_name, h, mnt):
     try:
-        cleaned = ''.join(c for c in m.text if c.isdigit() or c == ':')
-        parts = [int(x) for x in cleaned.split(':') if x]
-        hour, minute = parts[0], parts[1]
-        second = parts[2] if len(parts) == 3 else 0
+        numbers = [int(s) for s in ''.join(c if c.isdigit() or c == ':' else ' ' for c in m.text).split() if s.isdigit()]
+        hour = numbers[0]
+        minute = numbers[1]
+        second = numbers[2] if len(numbers) >= 3 else 0
+
         death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
         death_str, appear_str = schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {death_str}\nПоявится в {appear_str} МСК", reply_markup=kb)
     except:
-        bot.send_message(m.chat.id, "Неправильно! Пример: 22:58 или 22:58:00", reply_markup=kb)
+        bot.send_message(m.chat.id, "Не понял время\nПримеры: 23:52   23:52:00   235200", reply_markup=kb)
 
 bot.infinity_polling()
