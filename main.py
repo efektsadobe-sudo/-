@@ -11,7 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 
 MOSCOW = pytz.timezone("Europe/Moscow")
 history = deque(maxlen=10)
-timers = []  # [appear_time, boss_name, warned, spawned]
+timers = []   # [appear_time, boss_name]
 
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
@@ -26,29 +26,34 @@ def send(msg):
 
 def schedule_boss(boss_name, hours, minutes, death_dt):
     appear = death_dt + timedelta(hours=hours, minutes=minutes)
-    timers.append([appear, boss_name, False, False])  # warned, spawned
+    timers.append([appear, boss_name])
     add_to_history(boss_name,
                    death_dt.strftime('%H:%M:%S'),
                    appear.strftime('%H:%M:%S'))
     return death_dt.strftime('%H:%M:%S'), appear.strftime('%H:%M:%S')
 
 def timer_loop():
+    warned = set()   # чтобы не спамить предупреждениями
+    spawned = set()  # чтобы не спамить появлением
+
     while True:
         now = datetime.now(MOSCOW)
         for t in timers[:]:
-            appear, boss, warned, spawned = t
-            # Предупреждение за 2 минуты — только один раз
-            if not warned and now >= appear - timedelta(minutes=2):
+            appear, boss = t
+            key = (appear, boss)
+
+            # предупреждение за 2 минуты — только один раз
+            if now >= appear - timedelta(minutes=2) and key not in warned:
                 send(f"<b>{boss}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} МСК")
-                t[2] = True  # помечаем как отправленное
+                warned.add(key)
 
-            # Точный респ — только один раз
-            if not spawned and now >= appear:
+            # появление — только один раз
+            if now >= appear and key not in spawned:
                 send(f"<b>{boss} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} МСК")
-                t[3] = True
-                timers.remove(t)  # удаляем после спавна
+                spawned.add(key)
+                timers.remove(t)
 
-        time.sleep(3)
+        time.sleep(5)
 
 import threading
 threading.Thread(target=timer_loop, daemon=True).start()
