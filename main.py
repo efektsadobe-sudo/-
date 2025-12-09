@@ -26,7 +26,7 @@ def send(msg):
 
 def schedule_boss(boss_name, hours, minutes, death_dt):
     appear = death_dt + timedelta(hours=hours, minutes=minutes)
-    timers.append([appear, boss_name, False])  # False = предупреждение ещё не отправлено
+    timers.append([appear, boss_name, False])
     add_to_history(boss_name,
                    death_dt.strftime('%H:%M:%S'),
                    appear.strftime('%H:%M:%S'))
@@ -37,20 +37,14 @@ def timer_loop():
         now = datetime.now(MOSCOW)
         for t in timers[:]:
             appear, boss, warned = t
-
-            # Предупреждение за 2 минуты — только один раз
             if not warned and now >= appear - timedelta(minutes=2):
                 send(f"<b>{boss}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} МСК")
-                t[2] = True  # помечаем, что уже отправили
-
-            # Появление — только один раз
+                t[2] = True
             if now >= appear:
                 send(f"<b>{boss} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} МСК")
                 timers.remove(t)
-
         time.sleep(5)
 
-import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
 @bot.message_handler(commands=['start', 'help'])
@@ -71,11 +65,11 @@ def handle(m):
         bot.reply_to(m, f"ЛИЛИТ записана на {d}\nПоявится в {a} МСК", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Время смерти Астарота")
+        bot.reply_to(m, "Время смерти Астарота", reply_markup=kb)
         bot.register_next_step_handler(m, lambda x: manual(x, "АСТАРОТ", 4, 8))
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Время смерти Лилит")
+        bot.reply_to(m, "Время смерти Лилит", reply_markup=kb)
         bot.register_next_step_handler(m, lambda x: manual(x, "ЛИЛИТ", 3, 58))
 
     elif txt == "История записей":
@@ -91,8 +85,8 @@ def manual(m, boss_name, h, mnt):
         second = int(parts[2]) if len(parts) >= 3 else 0
         death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
         d, a = schedule_boss(boss_name, h, mnt, death)
-        bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)
+        bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)  # ← клавиатура возвращается
     except:
-        bot.send_message(m.chat.id, "Ошибка! Примеры: 00:18:30 · 23:52", reply_markup=kb)
+        bot.send_message(m.chat.id, "Ошибка! Примеры: 2:56 · 02:56 · 02:56:00", reply_markup=kb)
 
 bot.infinity_polling()
