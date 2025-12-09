@@ -32,16 +32,13 @@ def schedule_boss(boss_name, hours, minutes, death_dt):
                    appear.strftime('%H:%M:%S'))
     return death_dt.strftime('%H:%M:%S'), appear.strftime('%H:%M:%S')
 
-# Главный вечный цикл — 100 % надёжный
 def timer_loop():
     while True:
         now = datetime.now(MOSCOW)
         for t in timers[:]:
             appear, boss = t
-            # предупреждение за 2 минуты
             if appear - timedelta(minutes=2) <= now < appear:
                 send(f"<b>{boss}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} МСК")
-            # точный респ
             if now >= appear:
                 send(f"<b>{boss} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} МСК")
                 timers.remove(t)
@@ -50,7 +47,6 @@ def timer_loop():
 import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
-# === Остальной код без изменений ===
 @bot.message_handler(commands=['start', 'help'])
 def start(m):
     bot.send_message(m.chat.id, "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nМСК · до секунд · 24/7", parse_mode="HTML", reply_markup=kb)
@@ -82,13 +78,19 @@ def handle(m):
 
 def manual(m, boss_name, h, mnt):
     try:
-        nums = [int(s) for s in ''.join(c if c.isdigit() or c == ':' else ' ' for c in m.text).split() if s.isdigit()]
-        hour, minute = nums[0], nums[1]
-        second = nums[2] if len(nums) >= 3 else 0
+        # Принимает 00:11:40, 0:11:40, 23:57, 235700 и т.д.
+        cleaned = ''.join(c for c in m.text if c.isdigit() or c == ':')
+        parts = cleaned.split(':')
+        parts = [p.zfill(2) for p in parts if p or p == '0']  # ← фикс для 00:11:40
+
+        hour = int(parts[0])
+        minute = int(parts[1])
+        second = int(parts[2]) if len(parts) >= 3 else 0
+
         death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
         d, a = schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)
     except:
-        bot.send_message(m.chat.id, "Неправильно! Примеры: 23:57 или 23:57:00", reply_markup=kb)
+        bot.send_message(m.chat.id, "Неправильно!\nПримеры: 00:11:40 · 23:57 · 235700", reply_markup=kb)
 
 bot.infinity_polling()
