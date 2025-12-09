@@ -11,7 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 
 MOSCOW = pytz.timezone("Europe/Moscow")
 history = deque(maxlen=10)
-timers = []  # [appear_time, boss_name]
+timers = []
 
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
@@ -44,7 +44,6 @@ def timer_loop():
                 timers.remove(t)
         time.sleep(3)
 
-import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
 @bot.message_handler(commands=['start', 'help'])
@@ -65,12 +64,12 @@ def handle(m):
         bot.reply_to(m, f"ЛИЛИТ записана на {d}\nПоявится в {a} МСК", reply_markup=kb)
 
     elif txt == "Астарот — вручную":
-        bot.reply_to(m, "Время смерти Астарота")
-        bot.register_next_step_handler(m, lambda x: manual(x, "АСТАРОТ", 4, 8))
+        msg = bot.reply_to(m, "Время смерти Астарота (пример: 00:18:30)")
+        bot.register_next_step_handler(msg, lambda x: manual(x, "АСТАРОТ", 4, 8))
 
     elif txt == "Лилит — вручную":
-        bot.reply_to(m, "Время смерти Лилит")
-        bot.register_next_step_handler(m, lambda x: manual(x, "ЛИЛИТ", 3, 58))
+        msg = bot.reply_to(m, "Время смерти Лилит (пример: 00:18:30)")
+        bot.register_next_step_handler(msg, lambda x: manual(x, "ЛИЛИТ", 3, 58))
 
     elif txt == "История записей":
         text = "<b>Последние респы:</b>\n" + ("\n".join(history) if history else "пусто")
@@ -78,10 +77,9 @@ def handle(m):
 
 def manual(m, boss_name, h, mnt):
     try:
-        # Принимает 00:15:00, 0:15:00, 23:52:00, 3:15, 235200 и т.д.
+        # Убираем всё кроме цифр и :
         cleaned = ''.join(c for c in m.text if c.isdigit() or c == ':')
-        parts = cleaned.split(':')
-        parts = [p.zfill(2) for p in parts if p or p == '0']  # фикс для ведущих нулей
+        parts = [p.zfill(2) for p in cleaned.split(':') if p or p == '0']
 
         hour = int(parts[0])
         minute = int(parts[1])
@@ -90,7 +88,7 @@ def manual(m, boss_name, h, mnt):
         death = datetime.now(MOSCOW).replace(hour=hour, minute=minute, second=second, microsecond=0)
         d, a = schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)
-    except:
-        bot.send_message(m.chat.id, "Ошибка! Примеры: 00:15:00 · 23:52 · 235200", reply_markup=kb)
+    except Exception as e:
+        bot.send_message(m.chat.id, "Ошибка!\nПросто пришли время: 00:18:30 или 23:52", reply_markup=kb)
 
 bot.infinity_polling()
