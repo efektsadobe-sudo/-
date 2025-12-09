@@ -3,15 +3,17 @@ import telebot
 from datetime import datetime, timedelta
 import time
 import pytz
-from collections import deque
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 bot = telebot.TeleBot(TOKEN)
 
 MOSCOW = pytz.timezone("Europe/Moscow")
-history = deque(maxlen=10)
-timers = []   # [appear_time, boss_name]
+
+# ОЧИЩАЕМ всё при старте
+timers = []          # [appear_time, boss_name, warned, spawned]
+warned_times = set() # чтобы не спамить
+spawned_times = set()
 
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
@@ -19,6 +21,12 @@ kb.add("Астарот — вручную", "Лилит — вручную")
 kb.add("История записей")
 
 def add_to_history(boss, death, appear):
+    from collections import deque
+    global history
+    try:
+        history
+    except:
+        history = deque(maxlen=10)
     history.append(f"{death} → {appear} {boss}")
 
 def send(msg):
@@ -33,24 +41,21 @@ def schedule_boss(boss_name, hours, minutes, death_dt):
     return death_dt.strftime('%H:%M:%S'), appear.strftime('%H:%M:%S')
 
 def timer_loop():
-    warned = set()   # чтобы не спамить предупреждениями
-    spawned = set()  # чтобы не спамить появлением
-
     while True:
         now = datetime.now(MOSCOW)
         for t in timers[:]:
             appear, boss = t
-            key = (appear, boss)
+            key = str(appear)
 
-            # предупреждение за 2 минуты — только один раз
-            if now >= appear - timedelta(minutes=2) and key not in warned:
+            # предупреждение — только один раз
+            if now >= appear - timedelta(minutes=2) and key not in warned_times:
                 send(f"<b>{boss}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} МСК")
-                warned.add(key)
+                warned_times.add(key)
 
             # появление — только один раз
-            if now >= appear and key not in spawned:
+            if now >= appear and key not in spawned_times:
                 send(f"<b>{boss} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} МСК")
-                spawned.add(key)
+                spawned_times.add(key)
                 timers.remove(t)
 
         time.sleep(5)
@@ -58,7 +63,7 @@ def timer_loop():
 import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
 def start(m):
     bot.send_message(m.chat.id, "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nМСК · до секунд · 24/7", parse_mode="HTML", reply_markup=kb)
 
@@ -84,7 +89,10 @@ def handle(m):
         bot.register_next_step_handler(m, lambda x: manual(x, "ЛИЛИТ", 3, 58))
 
     elif txt == "История записей":
-        text = "<b>Последние респы:</b>\n" + ("\n".join(history) if history else "пусто")
+        try:
+            text = "<b>Последние респы:</b>\n" + "\n".join(history)
+        except:
+            text = "пусто"
         bot.reply_to(m, text, parse_mode="HTML", reply_markup=kb)
 
 def manual(m, boss_name, h, mnt):
