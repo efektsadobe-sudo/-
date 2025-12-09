@@ -48,13 +48,8 @@ def timer_loop():
 import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
-# === ДВА обработчика /start — работает всегда ===
 @bot.message_handler(commands=['start', 'help'])
-def start_command(m):
-    bot.send_message(m.chat.id, "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nМСК · до секунд · 24/7", parse_mode="HTML", reply_markup=kb)
-
-@bot.message_handler(func=lambda m: m.text and m.text.strip().lower() in ['/start', 'start'])
-def start_text(m):
+def start(m):
     bot.send_message(m.chat.id, "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nМСК · до секунд · 24/7", parse_mode="HTML", reply_markup=kb)
 
 @bot.message_handler(func=lambda m: True)
@@ -94,7 +89,5 @@ def manual(m, boss_name, h, mnt):
         bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)
     except:
         bot.send_message(m.chat.id, "Ошибка! Примеры: 00:18:30 · 23:52 · 235200", reply_markup=kb)
-
-bot)
 
 bot.infinity_polling()
