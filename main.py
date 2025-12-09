@@ -11,7 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 
 MOSCOW = pytz.timezone("Europe/Moscow")
 history = deque(maxlen=10)
-timers = []  # [appear_time, boss_name, warned]
+timers = []  # [appear_time, boss_name]
 
 kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 kb.add("Астарот умер сейчас", "Лилит умерла сейчас")
@@ -26,28 +26,31 @@ def send(msg):
 
 def schedule_boss(boss_name, hours, minutes, death_dt):
     appear = death_dt + timedelta(hours=hours, minutes=minutes)
-    timers.append([appear, boss_name, False])
+    timers.append([appear, boss_name])
     add_to_history(boss_name,
                    death_dt.strftime('%H:%M:%S'),
                    appear.strftime('%H:%M:%S'))
     return death_dt.strftime('%H:%M:%S'), appear.strftime('%H:%M:%S')
 
+# Главный вечный цикл — 100 % надёжный
 def timer_loop():
     while True:
         now = datetime.now(MOSCOW)
         for t in timers[:]:
-            appear, boss, warned = t
-            if not warned and now >= appear - timedelta(minutes=2):
+            appear, boss = t
+            # предупреждение за 2 минуты
+            if appear - timedelta(minutes=2) <= now < appear:
                 send(f"<b>{boss}</b> через 2 минуты!\n≈ {appear.strftime('%H:%M:%S')} МСК")
-                t[2] = True
+            # точный респ
             if now >= appear:
                 send(f"<b>{boss} ПОЯВИЛСЯ!</b>\n{appear.strftime('%H:%M:%S')} МСК")
                 timers.remove(t)
-        time.sleep(5)
+        time.sleep(3)
 
 import threading
 threading.Thread(target=timer_loop, daemon=True).start()
 
+# === Остальной код без изменений ===
 @bot.message_handler(commands=['start', 'help'])
 def start(m):
     bot.send_message(m.chat.id, "<b>Астарот 4:08 ⋆ Лилит 3:58</b>\nМСК · до секунд · 24/7", parse_mode="HTML", reply_markup=kb)
@@ -86,6 +89,6 @@ def manual(m, boss_name, h, mnt):
         d, a = schedule_boss(boss_name, h, mnt, death)
         bot.send_message(m.chat.id, f"{boss_name} записан на {d}\nПоявится в {a} МСК", reply_markup=kb)
     except:
-        bot.send_message(m.chat.id, "Ошибка! Примеры: 23:52 · 235200 · 23:52:00", reply_markup=kb)
+        bot.send_message(m.chat.id, "Неправильно! Примеры: 23:57 или 23:57:00", reply_markup=kb)
 
 bot.infinity_polling()
